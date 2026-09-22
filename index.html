@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#FF6B6B">
+    <title>City Hotspots</title>
+    
+    <!-- Inline Web Manifest for single-file PWA requirement -->
+    <link rel="manifest" id="manifest-link">
+
+    <style>
+        :root {
+            --primary: #FF6B6B;
+            --secondary: #4ECDC4;
+            --dark: #2D3142;
+            --light: #F4F4F8;
+            --gray: #BFC0C0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+            padding-bottom: 70px; /* Space for bottom nav */
+        }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .filter-container {
+            display: flex;
+            overflow-x: auto;
+            padding: 1rem;
+            gap: 0.5rem;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .filter-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .filter-btn {
+            background: var(--light);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-weight: bold;
+            color: var(--gray);
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        main {
+            padding: 1rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hotspot-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease;
+        }
+
+        .hotspot-card:active {
+            transform: scale(0.98);
+        }
+
+        .hotspot-image {
+            width: 100%;
+            height: 200px;
+            background-color: var(--gray);
+            object-fit: cover;
+        }
+
+        .hotspot-info {
+            padding: 1rem;
+        }
+
+        .hotspot-title {
+            font-size: 1.25rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .hotspot-category {
+            font-size: 0.85rem;
+            color: var(--secondary);
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .hotspot-desc {
+            color: #666;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 0.75rem 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        .nav-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.2rem;
+        }
+
+        /* PWA Install Banner */
+        #installBanner {
+            display: none;
+            background: var(--dark);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            position: fixed;
+            bottom: 70px;
+            width: 100%;
+            z-index: 1000;
+        }
+
+        #installBtn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            margin-top: 0.5rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>City Hotspots</h1>
+    </header>
+
+    <div class="filter-container" id="filters">
+        <button class="filter-btn active" data-filter="All">All</button>
+        <button class="filter-btn" data-filter="Food">Food</button>
+        <button class="filter-btn" data-filter="Nature">Nature</button>
+        <button class="filter-btn" data-filter="Culture">Culture</button>
+        <button class="filter-btn" data-filter="Nightlife">Nightlife</button>
+    </div>
+
+    <main id="hotspot-list">
+        <!-- Cards will be injected here via JS -->
+    </main>
+
+    <div id="installBanner">
+        <p>Install this app on your device for easy access!</p>
+        <button id="installBtn">Install App</button>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active">
+            <span class="nav-icon">🌍</span>
+            <span>Explore</span>
+        </div>
+        <div class="nav-item">
+            <span class="nav-icon">❤️</span>
+            <span>Saved</span>
+        </div>
+        <div class="nav-item">
+            <span class="nav-icon">👤</span>
+            <span>Profile</span>
+        </div>
+    </nav>
+
+    <script>
+        // --- 1. MOCK DATA ---
+        const hotspots = [
+            { id: 1, name: "The Artisan Bakery", category: "Food", desc: "Famous for their sourdough and morning pastries.", img: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80" },
+            { id: 2, name: "Central Botanical Gardens", category: "Nature", desc: "A sprawling green oasis in the middle of the concrete jungle.", img: "https://images.unsplash.com/photo-1585320806055-703ea32467b7?auto=format&fit=crop&w=800&q=80" },
+            { id: 3, name: "Museum of Modern Art", category: "Culture", desc: "Contemporary exhibitions from global artists.", img: "https://images.unsplash.com/photo-1518998053401-878c73fd5fce?auto=format&fit=crop&w=800&q=80" },
+            { id: 4, name: "Neon Alley Club", category: "Nightlife", desc: "Underground music venue with top local DJs.", img: "https://images.unsplash.com/photo-1566737236500-c8ac43014a67?auto=format&fit=crop&w=800&q=80" },
+            { id: 5, name: "Street Food Market", category: "Food", desc: "Dozens of vendors serving global cuisines.", img: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80" },
+        ];
+
+        // --- 2. UI LOGIC ---
+        const listContainer = document.getElementById('hotspot-list');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+
+        function renderHotspots(filter = 'All') {
+            listContainer.innerHTML = '';
+            
+            const filteredData = filter === 'All' 
+                ? hotspots 
+                : hotspots.filter(h => h.category === filter);
+
+            if (filteredData.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center; padding: 2rem;">No hotspots found for this category.</p>';
+                return;
+            }
+
+            filteredData.forEach(spot => {
+                const card = document.createElement('div');
+                card.className = 'hotspot-card';
+                card.innerHTML = `
+                    <img src="${spot.img}" alt="${spot.name}" class="hotspot-image" loading="lazy">
+                    <div class="hotspot-info">
+                        <div class="hotspot-category">${spot.category}</div>
+                        <h2 class="hotspot-title">${spot.name}</h2>
+                        <p class="hotspot-desc">${spot.desc}</p>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        // Initialize filtering
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                renderHotspots(e.target.dataset.filter);
+            });
+        });
+
+        // Initial render
+        renderHotspots();
+
+        // --- 3. PWA SETUP (Single File Implementation) ---
+        
+        // Generate Manifest dynamically
+        const manifest = {
+            name: "City Hotspots",
+            short_name: "Hotspots",
+            start_url: ".",
+            display: "standalone",
+            background_color: "#F4F4F8",
+            theme_color: "#FF6B6B",
+            description: "Discover the best places in your city.",
+            icons: [{
+                src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23FF6B6B'/%3E%3Ctext x='50' y='65' font-size='40' text-anchor='middle' fill='white'%3E📍%3C/text%3E%3C/svg%3E",
+                sizes: "192x192 512x512",
+                type: "image/svg+xml"
+            }]
+        };
+        
+        const manifestString = JSON.stringify(manifest);
+        document.getElementById('manifest-link').setAttribute('href', 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(manifestString));
+
+        // Create a blob-based Service Worker for caching
+        const swCode = `
+            const CACHE_NAME = 'hotspots-cache-v1';
+            self.addEventListener('install', (e) => {
+                self.skipWaiting();
+            });
+            self.addEventListener('activate', (e) => {
+                e.waitUntil(clients.claim());
+            });
+            self.addEventListener('fetch', (e) => {
+                e.respondWith(
+                    caches.match(e.request).then((response) => {
+                        return response || fetch(e.request);
+                    })
+                );
+            });
+        `;
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                try {
+                    const blob = new Blob([swCode], { type: 'application/javascript' });
+                    const swUrl = URL.createObjectURL(blob);
+                    
+                    navigator.serviceWorker.register(swUrl).then(registration => {
+                        console.log('SW registered with scope:', registration.scope);
+                    }).catch(err => {
+                        console.log('SW registration failed (expected if running from file:// or restrictive origins):', err);
+                    });
+                } catch (e) {
+                    console.log('Could not register blob SW:', e);
+                }
+            });
+        }
+
+        // --- 4. PWA INSTALL PROMPT ---
+        let deferredPrompt;
+        const installBanner = document.getElementById('installBanner');
+        const installBtn = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI notify the user they can install the PWA
+            installBanner.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            installBanner.style.display = 'none';
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                deferredPrompt = null;
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            installBanner.style.display = 'none';
+            console.log('PWA was installed');
+        });
+    </script>
+</body>
+</html>
